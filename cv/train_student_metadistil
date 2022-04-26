@@ -30,7 +30,7 @@ from distiller_zoo import DistillKL, HintLoss, Attention, Similarity, Correlatio
 from distiller_zoo import PKT, ABLoss, FactorTransfer, KDSVD, FSP, NSTLoss, KDN
 from crd.criterion import CRDLoss
 
-from helper.meta_loops import train_distill as train, validate
+from helper.meta_loops import train_meta_distill, validate
 from helper.pretrain import init
 
 
@@ -50,7 +50,7 @@ def parse_option():
 
     # optimization
     parser.add_argument('--lr', type=float, default=0.05, help='learning rate')
-    parser.add_argument('--loss_lr', type=float, default=0.001, help='teacher learning rate')
+    parser.add_argument('--loss_lr', type=float, default=0.05, help='teacher learning rate')
     parser.add_argument('--lr_decay_epochs', type=str, default='150,180,210', help='where to decay lr, can be a list')
     parser.add_argument('--lr_decay_rate', type=float, default=0.1, help='decay rate for learning rate')
     parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
@@ -73,6 +73,7 @@ def parse_option():
     # TODO: Add more support
     # 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2', 'ResNet50', 'MobileNetV2', 'ShuffleV1', 'ShuffleV2'])
     parser.add_argument('--path_t', type=str, default=None, help='teacher model snapshot')
+    parser.add_argument('--path_s', type=str, default="", help='student model snapshot')
 
     # distillation
     parser.add_argument('--kd_T', type=float, default=4, help='temperature for KD distillation')
@@ -157,7 +158,10 @@ def main():
 
     # model
     model_t = load_teacher(opt.path_t, n_cls)
-    model_s = model_dict[opt.model_s](num_classes=n_cls)
+    if not opt.path_s:
+        model_s = model_dict[opt.model_s](num_classes=n_cls)
+    else:
+        model_s = load_teacher(opt.path_s, n_cls)
 
     data = torch.randn(2, 3, 32, 32)
     model_t.eval()
@@ -208,32 +212,33 @@ def main():
     print('teacher accuracy: ', teacher_acc)
     
     #Fixed for first 150 epochs
-    for param_group in loss_optimizer.param_groups:
-        param_group['lr'] = 0
+    # for param_group in loss_optimizer.param_groups:
+    #     param_group['lr'] = 0
     # routine
     for epoch in range(1, opt.epochs + 1):
 
-        if epoch == 150:
-            for param_group in loss_optimizer.param_groups:
-                param_group['lr'] = opt.loss_lr
-        if epoch == 180:
-            for param_group in loss_optimizer.param_groups:
-                param_group['lr'] *= opt.loss_lr
-            opt.assume_s_step_size *= opt.lr_decay_rate
-        if epoch == 210:
-            for param_group in loss_optimizer.param_groups:
-                param_group['lr'] *= opt.loss_lr
-            opt.assume_s_step_size *= opt.lr_decay_rate
-        adjust_learning_rate(epoch, opt, s_optimizer)
+        # if epoch == 150:
+        #     for param_group in loss_optimizer.param_groups:
+        #         param_group['lr'] = opt.loss_lr
+        # if epoch == 180:
+        #     for param_group in loss_optimizer.param_groups:
+        #         param_group['lr'] *= opt.loss_lr
+        #     opt.assume_s_step_size *= opt.lr_decay_rate
+        # if epoch == 210:
+        #     for param_group in loss_optimizer.param_groups:
+        #         param_group['lr'] *= opt.loss_lr
+        #     opt.assume_s_step_size *= opt.lr_decay_rate
+        # adjust_learning_rate(epoch, opt, s_optimizer)
         # adjust_learning_rate(epoch, opt, t_optimizer)
         
         print("==> training...")
 
         time1 = time.time()
-        train_acc, train_loss = train(epoch, train_loader, held_loader, module_list, criterion_list, s_optimizer, loss_optimizer, opt)
+        train_acc, train_loss = train_meta_distill(epoch, train_loader, held_loader, module_list, criterion_list, s_optimizer, loss_optimizer, opt)
         time2 = time.time()
         print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
-
+        logger.log_value('alpha', criterion_ce_mse.alpha.item(), epoch)
+        logger.log_value('Temperature', criterion_ce_mse.T.item())
         logger.log_value('train_acc', train_acc, epoch)
         logger.log_value('train_loss', train_loss, epoch)
 
