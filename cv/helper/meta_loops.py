@@ -71,7 +71,7 @@ def train_meta_distill(epoch, train_loader, held_loader, module_list, criterion_
             assume_loss_cls = criterion_cls(logit_s, target)
             assume_loss_kd = criterion_kd(logit_s, logit_t)
 
-            assume_loss = criterion_ce_mse(logit_s, logit_t)
+            assume_loss = criterion_ce_mse(logit_s, logit_t, target)
 
             acc1, acc5 = accuracy(logit_s, target, topk=(1, 5))
             assume_losses.update(assume_loss.item(), input.size(0))
@@ -102,7 +102,8 @@ def train_meta_distill(epoch, train_loader, held_loader, module_list, criterion_
                 target = target.cuda()
 
             logit_s_prime = s_model(input, params=fast_weights)
-            s_prime_step_loss = criterion_ce_mse(logit_s_prime, target)
+            logit_t = t_model(input)
+            s_prime_step_loss = criterion_ce_mse(logit_s_prime, logit_t,  target)
 
             if s_prime_loss is None:
                 s_prime_loss = s_prime_step_loss
@@ -120,7 +121,11 @@ def train_meta_distill(epoch, train_loader, held_loader, module_list, criterion_
         held_losses.update(s_prime_loss.item(), 1)
 
         loss_optimizer.step()
-
+        alpha_clamped = torch.clamp(criterion_ce_mse.alpha.data, 0, 1)
+        criterion_ce_mse.alpha.data = alpha_clamped
+        # for name, param in criterion_ce_mse.named_parameters():
+        #     if param.requires_grad:
+        #         print("%s: %d", (name, param.data))
         # Manual zero_grad
         for p in criterion_ce_mse.parameters():
             p.grad = None
@@ -162,7 +167,7 @@ def train_meta_distill(epoch, train_loader, held_loader, module_list, criterion_
             real_loss_cls = criterion_cls(logit_s, target)
             real_loss_kd = criterion_kd(logit_s, logit_t)
 
-            real_loss = criterion_ce_mse(logit_s, logit_t)
+            real_loss = criterion_ce_mse(logit_s, logit_t, target)
 
             acc1, acc5 = accuracy(logit_s, target, topk=(1, 5))
             real_losses.update(real_loss.item(), input.size(0))
