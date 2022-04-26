@@ -21,9 +21,9 @@ class CE_MSE(nn.Module):
         self.T = nn.Parameter(torch.Tensor([T]))
         self.ce_criterion = nn.CrossEntropyLoss()
 
-    def forward(self, logits_s, logits_t):
+    def forward(self, logits_s, logits_t, targets):
         p_s = logits_s / self.T
         p_t = logits_t / self.T
         mse_temp_loss = F.mse_loss(p_s,p_t)
-        ce_loss = self.ce_criterion(logits_s, logits_t)
+        ce_loss = self.ce_criterion(logits_s, targets)
         return (1-self.alpha) * ce_loss + (self.alpha) * mse_temp_loss

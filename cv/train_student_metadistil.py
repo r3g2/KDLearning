@@ -124,6 +124,8 @@ def get_teacher_name(model_path):
     else:
         return segments[0] + '_' + segments[1] + '_' + segments[2]
 
+def get_student_name():
+    return "resnet20"
 
 def load_teacher(model_path, n_cls):
     print('==> loading teacher model')
@@ -136,6 +138,16 @@ def load_teacher(model_path, n_cls):
     print('==> done')
     return model
 
+def load_student(model_path, n_cls):
+    print('==> loading student model')
+    model_s = get_student_name()
+    model = model_dict[model_s](num_classes=n_cls)
+    if torch.cuda.is_available():
+        model.load_state_dict(torch.load(model_path)['model'])
+    else:
+        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'))['model'])
+    print('==> done')
+    return model
 
 def main():
     best_acc = 0
@@ -161,7 +173,7 @@ def main():
     if not opt.path_s:
         model_s = model_dict[opt.model_s](num_classes=n_cls)
     else:
-        model_s = load_teacher(opt.path_s, n_cls)
+        model_s = load_student(opt.path_s, n_cls)
 
     data = torch.randn(2, 3, 32, 32)
     model_t.eval()
