@@ -250,7 +250,7 @@ def main():
         time2 = time.time()
         print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
         logger.log_value('alpha', criterion_ce_mse.alpha.item(), epoch)
-        logger.log_value('Temperature', criterion_ce_mse.T.item())
+        logger.log_value('Temperature', criterion_ce_mse.T.item(), epoch)
         logger.log_value('train_acc', train_acc, epoch)
         logger.log_value('train_loss', train_loss, epoch)
 
