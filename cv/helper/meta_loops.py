@@ -103,8 +103,8 @@ def train_meta_distill(epoch, train_loader, held_loader, module_list, criterion_
 
             logit_s_prime = s_model(input, params=fast_weights)
             logit_t = t_model(input)
-            s_prime_step_loss = criterion_ce_mse(logit_s_prime, logit_t,  target)
-
+            #s_prime_step_loss = criterion_ce_mse(logit_s_prime, logit_t,  target)
+            s_prime_step_loss = criterion_cls(logit_s_prime,  target)
             if s_prime_loss is None:
                 s_prime_loss = s_prime_step_loss
             else:
