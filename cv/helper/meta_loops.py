@@ -122,7 +122,9 @@ def train_meta_distill(epoch, train_loader, held_loader, module_list, criterion_
 
         loss_optimizer.step()
         alpha_clamped = torch.clamp(criterion_ce_mse.alpha.data, 0, 1)
+        temp_clamped = torch.clamp(criterion_ce_mse.temp.data, 1,6)
         criterion_ce_mse.alpha.data = alpha_clamped
+        criterion_ce_mse.temp.data = temp_clamped
         # for name, param in criterion_ce_mse.named_parameters():
         #     if param.requires_grad:
         #         print("%s: %d", (name, param.data))
